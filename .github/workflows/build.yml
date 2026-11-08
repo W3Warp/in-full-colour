@@ -18,10 +18,13 @@ jobs:
         with:
           dotnet-version: 10.0.x
 
-      - name: Build
+      - name: Build (Visual Studio MSBuild)
         shell: pwsh
         run: |
-          dotnet build ColorControl/ColorControl.csproj -c Release -p:Platform=x64 -p:GenerateDocumentationFile=false -nologo -v:minimal "-flp:logfile=build.log;verbosity=normal"
+          $vswhere = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe"
+          $msbuild = & $vswhere -latest -requires Microsoft.Component.MSBuild -find "MSBuild\**\Bin\MSBuild.exe" | Select-Object -First 1
+          Write-Host "Using MSBuild: $msbuild"
+          & $msbuild ColorControl/ColorControl.csproj -restore -m -nologo -v:minimal "-p:Configuration=Release" "-p:Platform=x64" "-p:GenerateDocumentationFile=false" "-flp:logfile=build.log;verbosity=normal"
           "BUILD_EXIT=$LASTEXITCODE" | Out-File build-status.txt
           exit 0
 
