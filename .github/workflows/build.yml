@@ -1,0 +1,35 @@
+name: Build ColorControl with webOS 26 fix (PR 608)
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - name: Get ColorControl source with pull request 608 applied
+        uses: actions/checkout@v4
+        with:
+          repository: Maassoft/ColorControl
+          ref: refs/pull/608/head
+
+      - name: Install .NET 10
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Build
+        run: dotnet build ColorControl.slnx -c Release -p:Platform=x64
+
+      - name: Package
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Path package | Out-Null
+          Copy-Item -Path "ColorControl/bin/x64/Release/*" -Destination package -Recurse
+          Get-ChildItem package -Recurse -File | Measure-Object | Select-Object Count
+
+      - name: Upload result
+        uses: actions/upload-artifact@v4
+        with:
+          name: ColorControl-webOS26-fix
+          path: package
