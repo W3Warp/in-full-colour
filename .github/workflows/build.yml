@@ -3,15 +3,18 @@ name: Build ColorControl with webOS 26 fix (PR 608)
 on:
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 jobs:
   build:
     runs-on: windows-latest
     steps:
-      - name: Get ColorControl source with pull request 608 applied
+      - name: Get ColorControl source (pull request 608, pinned commit)
         uses: actions/checkout@v4
         with:
           repository: Maassoft/ColorControl
-          ref: refs/pull/608/head
+          ref: f0c64a66bafa2fd8e2c483eb7e1f0c7c5521815d
 
       - name: Install .NET 10
         uses: actions/setup-dotnet@v4
@@ -49,3 +52,29 @@ jobs:
         with:
           name: ColorControl-webOS26-fix
           path: package
+
+      - name: Publish release (only if the build produced a program)
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if (-not (Test-Path package/app/ColorControl.exe)) {
+            Write-Host "No ColorControl.exe built - skipping release."
+            exit 0
+          }
+          Compress-Archive -Path package/app/* -DestinationPath ColorControl-webOS26-fix.zip -Force
+          $tag = "webos26-pr608-f0c64a6"
+          $repo = $env:GITHUB_REPOSITORY
+          @"
+          UNOFFICIAL build of ColorControl with the webOS 26 remote-control fix.
+
+          Built from pull request #608 (https://github.com/Maassoft/ColorControl/pull/608), commit f0c64a66bafa2fd8e2c483eb7e1f0c7c5521815d.
+          Source: https://github.com/Maassoft/ColorControl/commit/f0c64a66bafa2fd8e2c483eb7e1f0c7c5521815d (GPL-3.0, see the ColorControl repository).
+          Built by the public workflow in this repository, so you can verify it or rebuild it yourself.
+
+          Needs .NET 10 Desktop Runtime and ASP.NET Core Runtime 10. Tick "Enable webOS 26 compatibility" and re-pair the TV.
+          Credit: jamking (pull request #608) and the LGTV Companion project. No support from Maassoft, please.
+          "@ | Out-File notes.md -Encoding utf8
+          gh release view $tag --repo $repo 2>$null
+          if ($LASTEXITCODE -eq 0) { gh release delete $tag --repo $repo --yes --cleanup-tag }
+          gh release create $tag ColorControl-webOS26-fix.zip --repo $repo --title "ColorControl webOS 26 fix (unofficial, PR 608)" --notes-file notes.md
